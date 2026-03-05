@@ -1,14 +1,16 @@
-# neuromem
+<div align="center">
+  <img src="assets/neuromem-icon.svg" width="120" height="120" alt="neuromem" />
+  <h1>neuromem</h1>
+  <p><strong>Smart context management — never lose critical memory again</strong></p>
 
-**Smart Context Manager for LLM Agents**
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
+  [![Zero dependencies](https://img.shields.io/badge/core-zero%20deps-brightgreen)](https://github.com/speed785/neuromem)
+  [![Tests](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/speed785/neuromem)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
-[![Zero dependencies](https://img.shields.io/badge/core-zero%20deps-brightgreen)](https://github.com/speed785/neuromem)
-
-> **Stop losing critical context. Stop paying for redundant tokens.**  
-> neuromem intelligently manages your LLM conversation window — scoring message importance, summarizing older turns, and pruning safely — so your agent always has the right context, never the wrong one.
+  [Installation](#installation) · [Quick Start](#quick-start) · [Integrations](#integrations) · [API Reference](#api-reference)
+</div>
 
 ---
 
@@ -16,24 +18,45 @@
 
 Every LLM has a context window limit. As conversations grow, you face an ugly choice:
 
-- **Truncate from the top** → lose system instructions, early decisions, critical constraints  
-- **Send everything** → hit token limits, pay for redundant tokens, degrade performance  
-- **Hand-manage** → brittle, error-prone, doesn't scale to complex agents
+- **Truncate from the top** — lose system instructions, early decisions, critical constraints
+- **Send everything** — hit token limits, pay for redundant tokens, degrade performance
+- **Hand-manage** — brittle, doesn't scale, breaks under real agent complexity
 
-neuromem solves this automatically. It scores every message for importance using recency, role, keyword signals, and semantic relevance — then summarizes old turns and prunes only the least-important content. Your agent keeps its "working memory" sharp.
+neuromem solves this automatically. It scores every message for importance using recency, role, keyword signals, and semantic relevance. Then it summarizes old turns and prunes only the least-important content. Your agent keeps its working memory sharp, no matter how long the conversation runs.
+
+```python
+from neuromem import ContextManager
+
+cm = ContextManager(token_budget=8000)
+cm.add_system("You are a financial analysis assistant.")
+cm.add_user("My critical requirement: always cite sources.")
+# ... 200 more turns ...
+messages = cm.get_messages()  # budget-aware, importance-ranked, ready for your LLM
+```
 
 ---
 
 ## Features
 
-- **Importance scoring** — multi-factor scoring: recency decay, role weights, keyword signals (critical/task/requirement/error/etc.), semantic relevance
-- **Extractive summarization** — no API key needed; compresses old turns to short digests
-- **Abstractive summarization** — optional LLM-powered compression for higher quality
-- **Safe pruning** — always preserves system messages and the most recent N turns; never drops high-importance messages
-- **Token budget enforcement** — hard limit on context size; auto-triggers at configurable threshold
-- **Drop-in integrations** — OpenAI Chat wrapper and LangChain memory class
-- **Zero core dependencies** — pure Python stdlib / native TypeScript; optional deps for integrations
-- **Both Python and TypeScript** — identical API surface in both languages
+**Core (zero dependencies)**
+- **Multi-factor importance scoring** — recency decay, role weights, 50+ keyword signals, semantic relevance, all combined into a single score per message
+- **Extractive summarization** — compresses old turns to short digests with no API key required
+- **Abstractive summarization** — optional LLM-powered compression for higher fidelity
+- **Safe pruning** — system messages and recent turns are always protected; only low-importance content gets dropped
+- **Token budget enforcement** — hard ceiling on context size, auto-triggers at a configurable threshold
+
+**Integrations**
+- **OpenAI** — drop-in `ContextAwareOpenAI` wrapper; just swap your client
+- **Anthropic Claude** — same pattern, works with `claude-3-5-sonnet` and all Claude models
+- **LangChain** — `NeuromemMemory` plugs directly into any `ConversationChain`
+
+**Pluggable token counters**
+- `TiktokenCounter` for exact GPT token counts (requires `tiktoken`)
+- `ClaudeTokenCounter` for Claude-calibrated estimates
+- `GPTTokenCounter` as a fast zero-dep fallback
+- Bring your own by subclassing `TokenCounter`
+
+**Both Python and TypeScript** — identical API surface in both languages
 
 ---
 
@@ -47,6 +70,9 @@ pip install neuromem
 
 # With OpenAI integration
 pip install "neuromem[openai]"
+
+# With Anthropic integration
+pip install "neuromem[anthropic]"
 
 # With LangChain integration
 pip install "neuromem[langchain]"
@@ -75,7 +101,7 @@ from neuromem import ContextManager
 cm = ContextManager(token_budget=8000)
 cm.add_system("You are a helpful assistant.")
 cm.add_user("What is quantum entanglement?")
-cm.add_assistant("Quantum entanglement is…")
+cm.add_assistant("Quantum entanglement is...")
 cm.add_user("Can it enable FTL communication?")
 
 # Returns a pruned, budget-aware message list — pass directly to your LLM
@@ -90,16 +116,16 @@ import { ContextManager } from "neuromem";
 const cm = new ContextManager({ tokenBudget: 8000 });
 await cm.addSystem("You are a helpful assistant.");
 await cm.addUser("What is quantum entanglement?");
-await cm.addAssistant("Quantum entanglement is…");
+await cm.addAssistant("Quantum entanglement is...");
 
 const messages = await cm.getMessages(); // pruned, ready for API
 ```
 
 ---
 
-## Usage Examples
+## Integrations
 
-### OpenAI drop-in wrapper (Python)
+### OpenAI (Python)
 
 ```python
 import openai
@@ -121,7 +147,26 @@ print(client.stats())
 #  'utilization': 0.043, 'prune_events': 0, ...}
 ```
 
-### LangChain memory (Python)
+### Anthropic Claude (Python)
+
+```python
+import anthropic
+from neuromem.integrations.anthropic import ContextAwareAnthropic
+
+client = ContextAwareAnthropic(
+    anthropic_client=anthropic.Anthropic(),
+    model="claude-3-5-sonnet-latest",
+    token_budget=8000,
+    system_prompt="You are a senior software architect.",
+)
+
+reply = client.chat("Review this system design for a distributed cache.")
+reply = client.chat("What are the failure modes?")  # context auto-managed
+
+print(client.stats())
+```
+
+### LangChain (Python)
 
 ```python
 from langchain.chains import ConversationChain
@@ -143,7 +188,7 @@ chain.predict(input="What about in TypeScript?")
 print(memory.context_stats)
 ```
 
-### OpenAI integration (TypeScript)
+### OpenAI (TypeScript)
 
 ```typescript
 import OpenAI from "openai";
@@ -162,7 +207,69 @@ const reply2 = await client.chat("How do they form?");  // context auto-managed
 console.log(client.stats());
 ```
 
+---
+
+## Token Counting
+
+neuromem ships with three token counters out of the box. Pick the one that matches your model, or bring your own.
+
+```python
+from neuromem import TiktokenCounter, ClaudeTokenCounter, GPTTokenCounter, TokenCounter
+
+# Exact counts for GPT models (requires tiktoken)
+counter = TiktokenCounter(model="gpt-4o")
+
+# Claude-calibrated estimates (no deps)
+counter = ClaudeTokenCounter()
+
+# Fast zero-dep fallback for any model
+counter = GPTTokenCounter()
+
+# Plug into ContextManager directly
+from neuromem import ContextManager
+cm = ContextManager(token_budget=8000, token_counter=counter)
+```
+
+**Custom counter** — subclass `TokenCounter` and implement one method:
+
+```python
+from neuromem import TokenCounter
+
+class MyCounter(TokenCounter):
+    def count(self, text: str) -> int:
+        return my_tokenizer.encode(text).length
+
+cm = ContextManager(token_budget=8000, token_counter=MyCounter())
+```
+
+---
+
+## How It Works
+
+### Scoring formula
+
+Every message gets a score from 0 to 1:
+
+```
+score = 0.35 × recency
+      + 0.20 × role_weight
+      + 0.15 × length_signal
+      + 0.30 × semantic_relevance
+      + keyword_hits × 0.25   (capped at 1.0)
+```
+
+System messages always receive `score = 1.0` and are never pruned.
+
+### Pruning strategy
+
+1. **Protect** system messages and the most recent N turns (configurable)
+2. **Score** remaining candidates
+3. **Summarize** low-scoring messages first (extractive by default)
+4. **Hard-prune** only if still over budget after summarization
+
 ### Manual scoring and pruning
+
+You can use the scorer and pruner directly if you want full control:
 
 ```python
 from neuromem import MessageScorer, Pruner
@@ -194,55 +301,7 @@ print(f"Summary inserted: {result.summary_inserted}")
 
 ---
 
-## Architecture
-
-```
-neuromem/
-├── context_manager.py     Core orchestration class
-├── scorer.py              Multi-factor importance scoring
-│     Factors:
-│       • Recency decay (exponential)
-│       • Role baseline (system > user > assistant)
-│       • Keyword signals (50+ critical terms)
-│       • Log-normalised message length
-│       • Cosine similarity to latest user turn
-├── summarizer.py          Extractive + abstractive compression
-├── pruner.py              Safe pruning with summary-first strategy
-└── integrations/
-    ├── openai.py           Drop-in OpenAI chat wrapper
-    └── langchain.py        LangChain BaseChatMemory subclass
-
-typescript/src/
-├── contextManager.ts
-├── scorer.ts
-├── summarizer.ts
-├── pruner.ts
-└── integrations/
-    └── openai.ts
-```
-
-### Scoring formula
-
-```
-score = 0.35 × recency
-      + 0.20 × role_weight
-      + 0.15 × length_signal
-      + 0.30 × semantic_relevance
-      + keyword_hits × 0.25   (capped at 1.0)
-```
-
-System messages always receive `score = 1.0` and are never pruned.
-
-### Pruning strategy
-
-1. **Protect** system messages and the most recent N turns (configurable)
-2. **Score** remaining candidates
-3. **Summarize** low-scoring messages first (extractive by default)
-4. **Hard-prune** only if still over budget after summarization
-
----
-
-## Configuration Reference
+## API Reference
 
 ### `ContextManager`
 
@@ -252,6 +311,7 @@ System messages always receive `score = 1.0` and are never pruned.
 | `auto_prune` | `bool` | `True` | Prune automatically on add |
 | `prune_threshold` | `float` | `0.9` | Budget fraction that triggers auto-prune |
 | `always_keep_last_n` | `int` | `4` | Always keep this many recent turns |
+| `token_counter` | `TokenCounter` | `GPTTokenCounter()` | Pluggable token counter |
 
 ### `MessageScorer`
 
@@ -267,9 +327,35 @@ System messages always receive `score = 1.0` and are never pruned.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `token_budget` | `int` | `4096` | Hard token ceiling |
-| `min_score_threshold` | `float` | `0.3` | Below this → candidate for summarization |
+| `min_score_threshold` | `float` | `0.3` | Below this, message is a candidate for summarization |
 | `always_keep_last_n` | `int` | `4` | Recent turns protected from pruning |
 | `summarize_before_prune` | `bool` | `True` | Try summarization before hard drops |
+
+---
+
+## Architecture
+
+```
+neuromem/
+├── context_manager.py     Core orchestration
+├── scorer.py              Multi-factor importance scoring
+├── summarizer.py          Extractive + abstractive compression
+├── pruner.py              Safe pruning with summary-first strategy
+├── token_counter.py       Pluggable token counters (GPT, Claude, tiktoken)
+├── observability.py       Metrics, logging, Prometheus export
+└── integrations/
+    ├── openai.py           Drop-in OpenAI chat wrapper
+    ├── anthropic.py        Drop-in Anthropic Claude wrapper
+    └── langchain.py        LangChain BaseChatMemory subclass
+
+typescript/src/
+├── contextManager.ts
+├── scorer.ts
+├── summarizer.ts
+├── pruner.ts
+└── integrations/
+    └── openai.ts
+```
 
 ---
 
@@ -290,14 +376,16 @@ node dist/examples/example_typescript_basic.js
 
 ---
 
-## Development
+## Contributing
+
+Issues and pull requests are welcome. Open an issue before large changes so we can align on direction.
 
 ```bash
-# Python
+# Python dev setup
 pip install -e ".[dev]"
 pytest
 
-# TypeScript
+# TypeScript dev setup
 cd typescript
 npm install
 npm run build
@@ -306,23 +394,6 @@ npm run typecheck
 
 ---
 
-## Roadmap
-
-- [ ] Anthropic Claude integration
-- [ ] Streaming token counter
-- [ ] Semantic chunking (sentence-transformer based)
-- [ ] Redis-backed persistent memory
-- [ ] Benchmark suite (compression quality vs. information retention)
-- [ ] `neuromem inspect` CLI tool
-
----
-
 ## License
 
 MIT — see [LICENSE](LICENSE)
-
----
-
-## Contributing
-
-Issues and pull requests welcome. Please open an issue before large changes.
