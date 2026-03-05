@@ -1,11 +1,17 @@
+import importlib
+import sys
+import types
 from types import SimpleNamespace
 
 import pytest
 
 import neuromem.integrations.langchain as langchain_integration
+import neuromem.integrations.llamaindex as llamaindex_integration
 import neuromem.summarizer as summarizer_module
 from neuromem.context_manager import ContextManager
 from neuromem.integrations.anthropic import ContextAwareAnthropic
+from neuromem.integrations.crewai import NeuromemCrewMemory
+from neuromem.integrations.llamaindex import NeuromemChatMemoryBuffer
 from neuromem.integrations.openai import ContextAwareOpenAI
 from neuromem.pruner import Pruner
 from neuromem.scorer import MessageScorer, ScoredMessage, _cosine_sim, _tf
@@ -223,3 +229,69 @@ def test_tiktoken_and_optional_import_edge_paths(monkeypatch):
     monkeypatch.setattr(langchain_integration, "_LANGCHAIN_AVAILABLE", False)
     with pytest.raises(ImportError):
         langchain_integration._require_langchain()
+
+
+def test_llamaindex_and_crewai_edge_paths(monkeypatch):
+    monkeypatch.setattr(llamaindex_integration, "ChatMessage", None)
+    monkeypatch.setattr(llamaindex_integration, "MessageRole", None)
+
+    memory = NeuromemChatMemoryBuffer(token_limit=50)
+    memory.put(SimpleNamespace(role="SYSTEM", content="sys"))
+    memory.put(SimpleNamespace(role="assistant", content="assistant response"))
+    memory.put(SimpleNamespace(role="custom", content="user fallback"))
+    all_messages = memory.get_all()
+    assert all_messages[0]["role"] == "system"
+    assert all_messages[2]["role"] == "user"
+
+    crew_memory = NeuromemCrewMemory(token_budget=50)
+    crew_memory.save({"role": "assistant", "text": "stored with text key"})
+    crew_memory.save(123)
+    assert crew_memory.search("text key")[0]["role"] == "assistant"
+
+    with_system = NeuromemCrewMemory(token_budget=50, system_prompt="system prompt")
+    assert with_system.search("system prompt")[0]["role"] == "system"
+
+
+def test_llamaindex_import_available_and_role_fallback(monkeypatch):
+    fake_memory_module = types.ModuleType("llama_index.core.memory")
+
+    class FakeBaseChatMemoryBuffer:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    setattr(fake_memory_module, "BaseChatMemoryBuffer", FakeBaseChatMemoryBuffer)
+
+    fake_llm_types_module = types.ModuleType("llama_index.core.base.llms.types")
+
+    class FakeChatMessage:
+        def __init__(self, role, content):
+            self.role = role
+            self.content = content
+
+    class FakeMessageRole:
+        USER = "user"
+        ASSISTANT = "assistant"
+        SYSTEM = "system"
+
+    setattr(fake_llm_types_module, "ChatMessage", FakeChatMessage)
+    setattr(fake_llm_types_module, "MessageRole", FakeMessageRole)
+
+    monkeypatch.setitem(sys.modules, "llama_index", types.ModuleType("llama_index"))
+    monkeypatch.setitem(sys.modules, "llama_index.core", types.ModuleType("llama_index.core"))
+    monkeypatch.setitem(sys.modules, "llama_index.core.base", types.ModuleType("llama_index.core.base"))
+    monkeypatch.setitem(sys.modules, "llama_index.core.base.llms", types.ModuleType("llama_index.core.base.llms"))
+    monkeypatch.setitem(sys.modules, "llama_index.core.memory", fake_memory_module)
+    monkeypatch.setitem(sys.modules, "llama_index.core.base.llms.types", fake_llm_types_module)
+
+    reloaded = importlib.reload(llamaindex_integration)
+    memory = reloaded.NeuromemChatMemoryBuffer(token_limit=20)
+    memory.put(SimpleNamespace(role="assistant", content="reply"))
+    assert memory.get_all()[0].role == "assistant"
+
+    monkeypatch.setattr(reloaded, "MessageRole", None)
+    monkeypatch.setattr(reloaded, "ChatMessage", FakeChatMessage)
+    fallback = reloaded.NeuromemChatMemoryBuffer(token_limit=20)
+    fallback.put(SimpleNamespace(role="assistant", content="again"))
+    assert fallback.get_all()[0].role == "assistant"
+
+    importlib.reload(reloaded)

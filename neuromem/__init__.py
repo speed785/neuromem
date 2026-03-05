@@ -37,6 +37,13 @@ from .observability import (
     reset_metrics,
     export_prometheus,
 )
+from .integrations import (
+    ContextAwareOpenAI,
+    ContextAwareAnthropic,
+    NeuromemMemory,
+    NeuromemChatMemoryBuffer,
+    NeuromemCrewMemory,
+)
 
 __all__ = [
     "ContextManager",
@@ -56,6 +63,11 @@ __all__ = [
     "get_metrics",
     "reset_metrics",
     "export_prometheus",
+    "ContextAwareOpenAI",
+    "ContextAwareAnthropic",
+    "NeuromemMemory",
+    "NeuromemChatMemoryBuffer",
+    "NeuromemCrewMemory",
 ]
 
 __version__ = "0.1.0"

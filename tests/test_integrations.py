@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 
 from neuromem.integrations.anthropic import ContextAwareAnthropic
+from neuromem.integrations.crewai import NeuromemCrewMemory
+from neuromem.integrations.llamaindex import NeuromemChatMemoryBuffer
 from neuromem.integrations.openai import ContextAwareOpenAI
 
 
@@ -92,3 +94,44 @@ def test_anthropic_wrapper_stream_path():
     wrapped = ContextAwareAnthropic(anthropic_client=client)
     response = wrapped.chat("hello", stream=True)
     assert response == "stream reply"
+
+
+def test_llamaindex_memory_buffer_put_get_reset(monkeypatch):
+    import neuromem.integrations.llamaindex as li_module
+
+    class FakeMessageRole:
+        USER = "user"
+        ASSISTANT = "assistant"
+        SYSTEM = "system"
+
+    class FakeChatMessage:
+        def __init__(self, role, content):
+            self.role = role
+            self.content = content
+
+    monkeypatch.setattr(li_module, "MessageRole", FakeMessageRole)
+    monkeypatch.setattr(li_module, "ChatMessage", FakeChatMessage)
+
+    memory = NeuromemChatMemoryBuffer(token_budget=60, system_prompt="system")
+    memory.put(SimpleNamespace(role="user", content="hello"))
+    memory.put(SimpleNamespace(role="assistant", content="hi"))
+
+    messages = memory.get()
+    assert len(messages) == 3
+    assert messages[0].content == "system"
+    assert messages[1].role == "user"
+
+    memory.reset()
+    assert memory.get_all() == []
+
+
+def test_crewai_memory_save_search_reset():
+    memory = NeuromemCrewMemory(token_budget=60)
+    memory.save("first memory")
+    memory.save({"role": "assistant", "content": "second memory"})
+    memory.save(SimpleNamespace(role="assistant", content="third memory"))
+
+    assert memory.search("memory", limit=2)[0]["content"] == "third memory"
+
+    memory.reset(keep_system=False)
+    assert memory.search("memory") == []
