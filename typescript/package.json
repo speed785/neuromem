@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^25.3.3"
   },
   "peerDependencies": {
     "openai": ">=4.0.0"
