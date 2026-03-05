@@ -4,21 +4,29 @@
   "description": "Smart Context Manager for LLM agents — intelligent token budgeting, scoring, summarization, and pruning",
   "author": "speed785",
   "license": "MIT",
-  "homepage": "https://github.com/speed785/neuromem",
+  "homepage": "https://github.com/speed785/neuromem#readme",
+  "bugs": {
+    "url": "https://github.com/speed785/neuromem/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/speed785/neuromem.git"
   },
   "keywords": [
-    "llm",
-    "context-window",
-    "token-management",
-    "langchain",
-    "openai",
-    "agents",
-    "memory",
     "ai",
-    "gpt"
+    "agent",
+    "llm",
+    "context",
+    "memory",
+    "context-window",
+    "openai",
+    "anthropic",
+    "langchain",
+    "token",
+    "summarization",
+    "pruning",
+    "chatgpt",
+    "claude"
   ],
   "type": "module",
   "main": "./dist/index.js",

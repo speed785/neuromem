@@ -2,12 +2,12 @@
 neuromem — Smart Context Manager for LLM agents
 """
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages  # pyright: ignore[reportMissingModuleSource]
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-setup(
+_ = setup(
     name="neuromem",
     version="0.1.0",
     author="speed785",
@@ -15,6 +15,11 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/speed785/neuromem",
+    project_urls={
+        "Documentation": "https://github.com/speed785/neuromem#readme",
+        "Issues": "https://github.com/speed785/neuromem/issues",
+        "Changelog": "https://github.com/speed785/neuromem/blob/main/CHANGELOG.md",
+    },
     packages=find_packages(exclude=["tests*", "examples*"]),
     python_requires=">=3.9",
     install_requires=[
@@ -50,5 +55,20 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    keywords="llm context-window token-management langchain openai agents memory",
+    keywords=[
+        "ai",
+        "agent",
+        "llm",
+        "context",
+        "memory",
+        "context-window",
+        "openai",
+        "anthropic",
+        "langchain",
+        "token",
+        "summarization",
+        "pruning",
+        "chatgpt",
+        "claude",
+    ],
 )
