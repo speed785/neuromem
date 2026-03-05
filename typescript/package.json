@@ -1,0 +1,63 @@
+{
+  "name": "neuromem",
+  "version": "0.1.0",
+  "description": "Smart Context Manager for LLM agents — intelligent token budgeting, scoring, summarization, and pruning",
+  "author": "speed785",
+  "license": "MIT",
+  "homepage": "https://github.com/speed785/neuromem",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/speed785/neuromem.git"
+  },
+  "keywords": [
+    "llm",
+    "context-window",
+    "token-management",
+    "langchain",
+    "openai",
+    "agents",
+    "memory",
+    "ai",
+    "gpt"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./integrations/openai": {
+      "import": "./dist/integrations/openai.js",
+      "types": "./dist/integrations/openai.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  },
+  "peerDependencies": {
+    "openai": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "openai": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

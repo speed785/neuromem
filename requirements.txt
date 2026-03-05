@@ -1,0 +1,16 @@
+# neuromem — core has zero required dependencies (pure stdlib)
+# Install optional extras as needed:
+
+# For OpenAI integration:
+# openai>=1.0.0
+
+# For LangChain integration:
+# langchain>=0.1.0
+# langchain-openai>=0.1.0
+
+# For development:
+# pytest>=7.0
+# pytest-cov
+# black
+# ruff
+# mypy
