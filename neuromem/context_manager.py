@@ -23,6 +23,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
 
+from .observability import MemoryLogger
 from .pruner import Pruner, PruneResult
 from .scorer import MessageScorer
 from .summarizer import Summarizer
@@ -82,11 +83,15 @@ class ContextManager:
         pruner: Optional[Pruner] = None,
         always_keep_last_n: int = 4,
         token_counter: Optional[TokenCounter] = None,
+        memory_logger: Optional[MemoryLogger] = None,
+        debug: bool = False,
     ) -> None:
         self.token_budget = token_budget
         self.auto_prune = auto_prune
         self.prune_threshold = prune_threshold
         self._token_counter = token_counter or GPTTokenCounter()
+        self._memory_logger = memory_logger or MemoryLogger()
+        self.debug = debug
 
         self._scorer = scorer or MessageScorer()
         self._summarizer = summarizer or Summarizer()
@@ -96,6 +101,7 @@ class ContextManager:
             summarizer=self._summarizer,
             always_keep_last_n=always_keep_last_n,
             token_counter=self._token_counter,
+            memory_logger=self._memory_logger,
         )
 
         self._history: List[_MessageRecord] = []
@@ -109,6 +115,27 @@ class ContextManager:
         """Add a message with an arbitrary *role*."""
         record = _MessageRecord(role=role, content=content, metadata=metadata or {})
         self._history.append(record)
+        current_total = self.token_count
+        self._memory_logger.log_event(
+            "message_added",
+            token_count=current_total,
+            budget=self.token_budget,
+            message_count=self.message_count,
+            compression_ratio=0.0,
+            role=role,
+            added_token_count=self._token_counter.count(content),
+            current_total=current_total,
+        )
+        utilization = current_total / self.token_budget if self.token_budget else 0.0
+        if utilization >= 0.9:
+            self._memory_logger.log_event(
+                "budget_enforced",
+                token_count=current_total,
+                budget=self.token_budget,
+                message_count=self.message_count,
+                compression_ratio=0.0,
+                utilization=round(utilization, 4),
+            )
         if self.auto_prune:
             self._maybe_prune()
 
@@ -146,8 +173,18 @@ class ContextManager:
         """
         raw = [r.to_dict() for r in self._history]
         if force_prune or self._pruner.needs_pruning(raw):
+            if self.debug:
+                self._print_scoring_breakdown(raw)
             result = self._pruner.prune(raw)
             self._prune_history.append(result)
+            self._memory_logger.log_event(
+                "budget_enforced",
+                token_count=result.total_tokens,
+                budget=self.token_budget,
+                message_count=len(result.messages),
+                compression_ratio=(result.summary_result.compression_ratio if result.summary_result else 0.0),
+                force_prune=force_prune,
+            )
             return result.messages
         return raw
 
@@ -225,13 +262,33 @@ class ContextManager:
         raw = [r.to_dict() for r in self._history]
         used = sum(self._token_counter.count(m.get("content", "")) for m in raw)
         if used >= self.token_budget * self.prune_threshold:
+            if self.debug:
+                self._print_scoring_breakdown(raw)
             result = self._pruner.prune(raw)
             self._prune_history.append(result)
+            self._memory_logger.log_event(
+                "budget_enforced",
+                token_count=result.total_tokens,
+                budget=self.token_budget,
+                message_count=len(result.messages),
+                compression_ratio=(result.summary_result.compression_ratio if result.summary_result else 0.0),
+                threshold=self.prune_threshold,
+            )
             # Reconstruct history from pruned messages
             self._history = [
                 _MessageRecord(role=m["role"], content=m["content"])
                 for m in result.messages
             ]
+
+    def _print_scoring_breakdown(self, messages: Sequence[dict[str, str]]) -> None:
+        scored = self._scorer.score_messages(messages)
+        print("[neuromem debug] scoring breakdown before prune")
+        for item in scored:
+            reasons = ", ".join(item.reasons)
+            print(
+                f"  idx={item.index} role={item.role} tokens={item.token_count} "
+                f"score={item.score:.4f} reasons={reasons}"
+            )
 
     # ------------------------------------------------------------------
     # Context-manager protocol

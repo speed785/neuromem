@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional, Sequence
 
+from .observability import MemoryLogger
 from .scorer import MessageScorer, ScoredMessage
 from .summarizer import Summarizer, SummaryResult
 from .token_counter import GPTTokenCounter, TokenCounter
@@ -84,6 +85,7 @@ class Pruner:
         summarizer: Optional[Summarizer] = None,
         preserve_roles: Optional[List[str]] = None,
         token_counter: Optional[TokenCounter] = None,
+        memory_logger: Optional[MemoryLogger] = None,
     ) -> None:
         self.token_budget = token_budget
         self.min_score_threshold = min_score_threshold
@@ -93,6 +95,7 @@ class Pruner:
         self.summarizer = summarizer or Summarizer()
         self.preserve_roles = set(preserve_roles or ["system"])
         self.token_counter = token_counter or GPTTokenCounter()
+        self.memory_logger = memory_logger or MemoryLogger()
 
     # ------------------------------------------------------------------
 
@@ -118,6 +121,7 @@ class Pruner:
         msgs = list(messages)
 
         current_tokens = sum(self.token_counter.count(m.get("content", "")) for m in msgs)
+        initial_tokens = current_tokens
         if not force and current_tokens <= self.token_budget:
             return PruneResult(
                 messages=msgs,
@@ -142,6 +146,17 @@ class Pruner:
         removed_tokens = 0
         summary_inserted = False
         summary_result: Optional[SummaryResult] = None
+        removed_indices: List[int] = []
+
+        self.memory_logger.log_event(
+            "scoring_complete",
+            token_count=current_tokens,
+            budget=self.token_budget,
+            message_count=len(msgs),
+            compression_ratio=0.0,
+            candidate_count=len(candidate_scored),
+            score_threshold=self.min_score_threshold,
+        )
 
         # --- try summarization first ---
         if self.summarize_before_prune and candidate_scored:
@@ -162,6 +177,7 @@ class Pruner:
                         if i in remove_set:
                             removed_count += 1
                             removed_tokens += self.token_counter.count(m.get("content", ""))
+                            removed_indices.append(i)
                         else:
                             if not inserted and i not in protected_indices and i == min(
                                 j for j in range(len(msgs)) if j not in remove_set and j not in protected_indices
@@ -180,6 +196,15 @@ class Pruner:
                     msgs = new_msgs
                     summary_inserted = True
                     current_tokens = sum(self.token_counter.count(m.get("content", "")) for m in msgs)
+                    self.memory_logger.log_event(
+                        "summary_inserted",
+                        token_count=current_tokens,
+                        budget=self.token_budget,
+                        message_count=len(msgs),
+                        compression_ratio=summary_result.compression_ratio,
+                        removed_messages=len(low_scored),
+                        removed_tokens=summary_result.original_token_count - summary_result.summary_token_count,
+                    )
 
         # --- hard prune if still over budget ---
         if current_tokens > self.token_budget:
@@ -198,10 +223,25 @@ class Pruner:
                     break
                 current_tokens -= sm.token_count
                 remove_set2.add(sm.index)
+                removed_indices.append(sm.index)
                 removed_count += 1
                 removed_tokens += sm.token_count
 
             msgs = [m for i, m in enumerate(msgs) if i not in remove_set2]
+
+        final_tokens = sum(self.token_counter.count(m.get("content", "")) for m in msgs)
+        self.memory_logger.log_event(
+            "prune_triggered",
+            token_count=final_tokens,
+            budget=self.token_budget,
+            message_count=len(msgs),
+            compression_ratio=(summary_result.compression_ratio if summary_result else 0.0),
+            removed_indices=sorted(set(removed_indices)),
+            score_threshold=self.min_score_threshold,
+            removed_tokens=removed_tokens,
+            removed_messages=removed_count,
+            tokens_freed=max(0, initial_tokens - final_tokens),
+        )
 
         return PruneResult(
             messages=msgs,

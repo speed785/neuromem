@@ -30,6 +30,13 @@ from .token_counter import (
     ClaudeTokenCounter,
     get_token_counter,
 )
+from .observability import (
+    MemoryLogger,
+    MemoryMetrics,
+    get_metrics,
+    reset_metrics,
+    export_prometheus,
+)
 
 __all__ = [
     "ContextManager",
@@ -44,6 +51,11 @@ __all__ = [
     "TiktokenCounter",
     "ClaudeTokenCounter",
     "get_token_counter",
+    "MemoryLogger",
+    "MemoryMetrics",
+    "get_metrics",
+    "reset_metrics",
+    "export_prometheus",
 ]
 
 __version__ = "0.1.0"
