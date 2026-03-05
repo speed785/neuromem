@@ -3,11 +3,13 @@
   <h1>neuromem</h1>
   <p><strong>Smart context management — never lose critical memory again</strong></p>
 
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-  [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
-  [![Zero dependencies](https://img.shields.io/badge/core-zero%20deps-brightgreen)](https://github.com/speed785/neuromem)
-  [![Tests](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/speed785/neuromem)
+  [![CI](https://github.com/speed785/neuromem/actions/workflows/ci.yml/badge.svg)](https://github.com/speed785/neuromem/actions/workflows/ci.yml)
+  [![Coverage](https://codecov.io/gh/speed785/neuromem/branch/main/graph/badge.svg)](https://codecov.io/gh/speed785/neuromem)
+  [![PyPI](https://img.shields.io/pypi/v/neuromem)](https://pypi.org/project/neuromem/)
+  [![npm](https://img.shields.io/npm/v/neuromem)](https://www.npmjs.com/package/neuromem)
+  [![Python](https://img.shields.io/badge/python-3.9+-blue)](https://python.org)
+  [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue)](https://typescriptlang.org)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
   [Installation](#installation) · [Quick Start](#quick-start) · [Integrations](#integrations) · [API Reference](#api-reference)
 </div>
@@ -49,6 +51,8 @@ messages = cm.get_messages()  # budget-aware, importance-ranked, ready for your 
 - **OpenAI** — drop-in `ContextAwareOpenAI` wrapper; just swap your client
 - **Anthropic Claude** — same pattern, works with `claude-3-5-sonnet` and all Claude models
 - **LangChain** — `NeuromemMemory` plugs directly into any `ConversationChain`
+- **LlamaIndex** — `NeuromemChatMemoryBuffer` for `BaseChatMemoryBuffer` workflows
+- **CrewAI** — `NeuromemCrewMemory` for agent memory save/search/reset
 
 **Pluggable token counters**
 - `TiktokenCounter` for exact GPT token counts (requires `tiktoken`)
@@ -76,6 +80,12 @@ pip install "neuromem[anthropic]"
 
 # With LangChain integration
 pip install "neuromem[langchain]"
+
+# With LlamaIndex integration
+pip install "neuromem[llamaindex]"
+
+# With CrewAI integration
+pip install "neuromem[crewai]"
 
 # Everything
 pip install "neuromem[all]"
@@ -186,6 +196,26 @@ chain = ConversationChain(
 chain.predict(input="How do I reverse a list in Python?")
 chain.predict(input="What about in TypeScript?")
 print(memory.context_stats)
+```
+
+### LlamaIndex (Python)
+
+```python
+from neuromem.integrations.llamaindex import NeuromemChatMemoryBuffer
+
+memory = NeuromemChatMemoryBuffer(token_budget=6000)
+memory.put({"role": "user", "content": "Track all architecture decisions."})
+messages = memory.get_all()
+```
+
+### CrewAI (Python)
+
+```python
+from neuromem.integrations.crewai import NeuromemCrewMemory
+
+memory = NeuromemCrewMemory(token_budget=6000)
+memory.save({"role": "assistant", "content": "We selected PostgreSQL for analytics."})
+hits = memory.search("PostgreSQL")
 ```
 
 ### OpenAI (TypeScript)
@@ -346,7 +376,9 @@ neuromem/
 └── integrations/
     ├── openai.py           Drop-in OpenAI chat wrapper
     ├── anthropic.py        Drop-in Anthropic Claude wrapper
-    └── langchain.py        LangChain BaseChatMemory subclass
+    ├── langchain.py        LangChain BaseChatMemory subclass
+    ├── llamaindex.py       LlamaIndex BaseChatMemoryBuffer adapter
+    └── crewai.py           CrewAI memory adapter
 
 typescript/src/
 ├── contextManager.ts
