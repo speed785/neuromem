@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>neuromem — Smart Context Manager for LLM Agents</title>
+  <meta name="description" content="Intelligently manage your LLM conversation window. Score message importance, summarize, prune safely.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a; --bg-card: #0f0f0f; --bg-elevated: #111111;
+      --border: #1a1a1a; --border-hover: #2a2a2a;
+      --text: #e0e0e0; --text-dim: #666666; --text-muted: #444444;
+      --accent: #a855f7; --accent-dim: rgba(168,85,247,0.08);
+      --cyan: #00d4ff;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-body: 'IBM Plex Sans', sans-serif;
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior:smooth; -webkit-font-smoothing:antialiased; }
+    body { font-family:var(--font-body); background:var(--bg); color:var(--text); line-height:1.6; }
+    a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+    code, pre { font-family:var(--font-mono); }
+    .container { max-width:860px; margin:0 auto; padding:0 2rem; }
+    .nav { position:sticky; top:0; z-index:100; padding:0 2rem; backdrop-filter:blur(12px); background:rgba(10,10,10,0.85); border-bottom:1px solid var(--border); }
+    .nav-inner { max-width:860px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:56px; }
+    .nav-brand { font-family:var(--font-mono); font-size:0.95rem; font-weight:600; color:var(--text); }
+    .nav-brand .accent { color:var(--accent); }
+    .nav-links { display:flex; gap:1.5rem; }
+    .nav-links a { font-family:var(--font-mono); font-size:0.78rem; color:var(--text-dim); }
+    .nav-links a:hover { color:var(--accent); text-decoration:none; }
+    .hero { padding:5rem 0 3rem; border-bottom:1px solid var(--border); }
+    .hero-icon { width:80px; height:80px; border-radius:14px; margin-bottom:1.5rem; }
+    .hero h1 { font-family:var(--font-mono); font-size:2.2rem; font-weight:700; letter-spacing:-0.03em; margin-bottom:0.5rem; }
+    .hero .tagline { font-size:1.1rem; color:var(--text-dim); margin-bottom:2rem; }
+    .hero-badges { display:flex; gap:0.5rem; flex-wrap:wrap; }
+    .badge { font-family:var(--font-mono); font-size:0.72rem; padding:0.3rem 0.8rem; border:1px solid var(--border); border-radius:100px; color:var(--text-dim); }
+    .install { padding:3rem 0; border-bottom:1px solid var(--border); }
+    .install h2 { font-family:var(--font-mono); font-size:1.3rem; margin-bottom:1.5rem; color:var(--accent); }
+    .install-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+    @media(max-width:600px) { .install-grid { grid-template-columns:1fr; } }
+    .install-block h3 { font-family:var(--font-mono); font-size:0.85rem; color:var(--text-dim); margin-bottom:0.5rem; }
+    pre { background:var(--bg-elevated); border:1px solid var(--border); border-radius:8px; padding:1rem 1.2rem; overflow-x:auto; font-size:0.82rem; line-height:1.7; }
+    pre .prompt { color:var(--accent); user-select:none; }
+    pre .cmd { color:var(--cyan); }
+    pre .comment { color:var(--text-muted); }
+    .doc-section { padding:3rem 0; border-bottom:1px solid var(--border); }
+    .doc-section:last-of-type { border-bottom:none; }
+    .doc-section h2 { font-family:var(--font-mono); font-size:1.3rem; margin-bottom:1.5rem; color:var(--accent); }
+    .doc-section h3 { font-family:var(--font-mono); font-size:1rem; margin:1.5rem 0 0.75rem; color:var(--text); }
+    .doc-section p { color:var(--text-dim); margin-bottom:1rem; font-size:0.95rem; }
+    .doc-section ul { margin-bottom:1rem; padding-left:0; list-style:none; }
+    .doc-section li { font-size:0.9rem; color:var(--text-dim); padding:0.25rem 0 0.25rem 1.2rem; position:relative; }
+    .doc-section li::before { content:'>'; position:absolute; left:0; font-family:var(--font-mono); color:var(--accent); font-size:0.8rem; }
+    .api-table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:0.85rem; }
+    .api-table th { text-align:left; font-family:var(--font-mono); font-weight:600; padding:0.6rem 1rem; border-bottom:2px solid var(--border); color:var(--text); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em; }
+    .api-table td { padding:0.6rem 1rem; border-bottom:1px solid var(--border); vertical-align:top; }
+    .api-table td:first-child { font-family:var(--font-mono); color:var(--cyan); white-space:nowrap; font-size:0.82rem; }
+    .api-table td:last-child { color:var(--text-dim); }
+    .api-table tr:hover { background:rgba(255,255,255,0.02); }
+    .footer { padding:3rem 0; text-align:center; border-top:1px solid var(--border); }
+    .footer p { font-size:0.82rem; color:var(--text-muted); }
+    .footer a { color:var(--accent); }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="https://speed785.github.io" class="nav-brand"><span class="accent">[</span>speed785<span class="accent">]</span> / neuromem</a>
+      <div class="nav-links">
+        <a href="#install">Install</a>
+        <a href="#usage">Usage</a>
+        <a href="#api">API</a>
+        <a href="https://github.com/speed785/neuromem">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <section class="hero">
+      <svg class="hero-icon" viewBox="0 0 512 512" width="80" height="80">
+        <defs><radialGradient id="nm-bg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#141414"/><stop offset="100%" stop-color="#0a0a0a"/></radialGradient><linearGradient id="nm-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a855f7"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient><filter id="nm-f"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <rect width="512" height="512" rx="64" fill="url(#nm-bg)"/>
+        <g filter="url(#nm-f)"><path d="M256 100 C200 100,140 130,120 180 C100 230,100 260,110 290 C90 300,80 320,85 350 C90 380,110 400,140 410 C160 420,180 415,200 410 C210 418,230 425,256 425 C282 425,302 418,312 410 C332 415,352 420,372 410 C402 400,422 380,427 350 C432 320,422 300,402 290 C412 260,412 230,392 180 C372 130,312 100,256 100Z" fill="none" stroke="url(#nm-g)" stroke-width="2.5" opacity="0.7"/></g>
+        <g fill="#e9d5ff"><circle cx="256" cy="200" r="7" opacity="0.95"/><circle cx="200" cy="240" r="6" opacity="0.9"/><circle cx="310" cy="240" r="6" opacity="0.9"/><circle cx="256" cy="300" r="6" opacity="0.9"/><circle cx="180" cy="320" r="5" opacity="0.85"/><circle cx="330" cy="320" r="5" opacity="0.85"/></g>
+        <g stroke="#a855f7" stroke-width="1" opacity="0.35" fill="none"><line x1="256" y1="200" x2="200" y2="240"/><line x1="256" y1="200" x2="310" y2="240"/><line x1="200" y1="240" x2="256" y2="300"/><line x1="310" y1="240" x2="256" y2="300"/><line x1="256" y1="300" x2="180" y2="320"/><line x1="256" y1="300" x2="330" y2="320"/></g>
+      </svg>
+      <h1>neuromem</h1>
+      <p class="tagline">Smart context management &mdash; never lose critical memory again</p>
+      <div class="hero-badges">
+        <span class="badge">Python 3.9+</span>
+        <span class="badge">TypeScript 5.x</span>
+        <span class="badge">MIT License</span>
+        <span class="badge">Zero Core Dependencies</span>
+      </div>
+    </section>
+
+    <section class="doc-section">
+      <p>Every LLM has a context window limit. As conversations grow, you face truncation, redundant tokens, or brittle hand-management. <strong>neuromem</strong> solves this automatically &mdash; scoring every message for importance, summarizing old turns, and pruning only the least important content. Your agent keeps its working memory sharp.</p>
+    </section>
+
+    <section class="install" id="install">
+      <h2># Install</h2>
+      <div class="install-grid">
+        <div class="install-block">
+          <h3>Python</h3>
+          <pre><span class="prompt">$</span> pip install neuromem
+<span class="comment"># With OpenAI integration:</span>
+<span class="prompt">$</span> pip install "neuromem[openai]"
+<span class="comment"># With LangChain:</span>
+<span class="prompt">$</span> pip install "neuromem[langchain]"
+<span class="comment"># Everything:</span>
+<span class="prompt">$</span> pip install "neuromem[all]"</pre>
+        </div>
+        <div class="install-block">
+          <h3>TypeScript / Node.js</h3>
+          <pre><span class="prompt">$</span> npm install neuromem
+<span class="comment"># or</span>
+<span class="prompt">$</span> yarn add neuromem</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="doc-section" id="usage">
+      <h2># Quick Start</h2>
+
+      <h3>Python</h3>
+      <pre>from neuromem import ContextManager
+
+cm = ContextManager(token_budget=8000)
+cm.add_system("You are a helpful assistant.")
+cm.add_user("What is quantum entanglement?")
+cm.add_assistant("Quantum entanglement is...")
+cm.add_user("Can it enable FTL communication?")
+
+<span class="comment"># Returns a pruned, budget-aware message list</span>
+messages = cm.get_messages()</pre>
+
+      <h3>TypeScript</h3>
+      <pre>import { ContextManager } from "neuromem";
+
+const cm = new ContextManager({ tokenBudget: 8000 });
+await cm.addSystem("You are a helpful assistant.");
+await cm.addUser("What is quantum entanglement?");
+await cm.addAssistant("Quantum entanglement is...");
+
+const messages = await cm.getMessages(); <span class="comment">// pruned, ready for API</span></pre>
+
+      <h3>OpenAI Drop-in Wrapper</h3>
+      <pre>from neuromem.integrations.openai import ContextAwareOpenAI
+
+client = ContextAwareOpenAI(
+    openai_client=openai.OpenAI(),
+    model="gpt-4o",
+    token_budget=8000,
+    system_prompt="You are a financial analysis assistant.",
+)
+
+reply = client.chat("What's the P/E ratio for AAPL?")
+reply = client.chat("Compare it to the sector average.")
+<span class="comment"># History is auto-managed</span></pre>
+    </section>
+
+    <section class="doc-section" id="api">
+      <h2># API Reference</h2>
+
+      <h3>ContextManager</h3>
+      <table class="api-table">
+        <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>token_budget</td><td>int</td><td>4096</td><td>Max context tokens</td></tr>
+          <tr><td>auto_prune</td><td>bool</td><td>True</td><td>Prune automatically on add</td></tr>
+          <tr><td>prune_threshold</td><td>float</td><td>0.9</td><td>Budget fraction that triggers auto-prune</td></tr>
+          <tr><td>always_keep_last_n</td><td>int</td><td>4</td><td>Always keep this many recent turns</td></tr>
+        </tbody>
+      </table>
+
+      <h3>MessageScorer</h3>
+      <table class="api-table">
+        <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>recency_decay</td><td>float</td><td>0.05</td><td>Exponential decay rate</td></tr>
+          <tr><td>keyword_boost</td><td>float</td><td>0.25</td><td>Score boost for critical keyword hits</td></tr>
+          <tr><td>relevance_weight</td><td>float</td><td>0.3</td><td>Weight of semantic relevance component</td></tr>
+          <tr><td>critical_override</td><td>bool</td><td>True</td><td>System messages always score 1.0</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Pruner</h3>
+      <table class="api-table">
+        <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>token_budget</td><td>int</td><td>4096</td><td>Hard token ceiling</td></tr>
+          <tr><td>min_score_threshold</td><td>float</td><td>0.3</td><td>Below this = candidate for summarization</td></tr>
+          <tr><td>always_keep_last_n</td><td>int</td><td>4</td><td>Recent turns protected from pruning</td></tr>
+          <tr><td>summarize_before_prune</td><td>bool</td><td>True</td><td>Try summarization before hard drops</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Scoring Formula</h3>
+      <pre>score = 0.35 x recency
+     + 0.20 x role_weight
+     + 0.15 x length_signal
+     + 0.30 x semantic_relevance
+     + keyword_hits x 0.25   (capped at 1.0)
+
+<span class="comment"># System messages always receive score = 1.0 and are never pruned.</span></pre>
+    </section>
+
+    <section class="doc-section">
+      <h2># Key Features</h2>
+      <ul>
+        <li>Multi-factor importance scoring (recency, role, keywords, semantic relevance)</li>
+        <li>Extractive summarization &mdash; no API key needed</li>
+        <li>Abstractive summarization &mdash; optional LLM-powered compression</li>
+        <li>Safe pruning &mdash; never drops system messages or recent turns</li>
+        <li>Token budget enforcement with configurable threshold</li>
+        <li>Drop-in OpenAI wrapper and LangChain memory class</li>
+        <li>Identical API in both Python and TypeScript</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p><a href="https://speed785.github.io">speed785.github.io</a> &middot; <a href="https://github.com/speed785/neuromem">GitHub</a> &middot; MIT License</p>
+    </div>
+  </footer>
+
+</body>
+</html>
