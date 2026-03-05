@@ -23,12 +23,10 @@ Usage::
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ..context_manager import ContextManager
-from ..scorer import MessageScorer
 from ..summarizer import Summarizer
-from ..pruner import Pruner
 
 
 class ContextAwareOpenAI:
@@ -128,7 +126,7 @@ class ContextAwareOpenAI:
         self.context.add_assistant(reply)
         return reply
 
-    def _stream(self, kwargs: dict) -> str:
+    def _stream(self, kwargs: dict[str, Any]) -> str:
         kwargs["stream"] = True
         chunks: List[str] = []
         for chunk in self._client.chat.completions.create(**kwargs):
@@ -146,7 +144,7 @@ class ContextAwareOpenAI:
         """Clear conversation history."""
         self.context.clear(keep_system=keep_system)
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, float | int]:
         """Return context statistics."""
         return self.context.stats()
 

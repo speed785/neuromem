@@ -23,6 +23,13 @@ from .context_manager import ContextManager
 from .scorer import MessageScorer, ScoredMessage
 from .summarizer import Summarizer, SummaryResult
 from .pruner import Pruner, PruneResult
+from .token_counter import (
+    TokenCounter,
+    GPTTokenCounter,
+    TiktokenCounter,
+    ClaudeTokenCounter,
+    get_token_counter,
+)
 
 __all__ = [
     "ContextManager",
@@ -32,6 +39,11 @@ __all__ = [
     "SummaryResult",
     "Pruner",
     "PruneResult",
+    "TokenCounter",
+    "GPTTokenCounter",
+    "TiktokenCounter",
+    "ClaudeTokenCounter",
+    "get_token_counter",
 ]
 
 __version__ = "0.1.0"

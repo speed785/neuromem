@@ -24,8 +24,9 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
 
 from .pruner import Pruner, PruneResult
-from .scorer import MessageScorer, _estimate_tokens
+from .scorer import MessageScorer
 from .summarizer import Summarizer
+from .token_counter import GPTTokenCounter, TokenCounter
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +40,7 @@ class _MessageRecord:
     timestamp: float = field(default_factory=time.time)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str]:
         return {"role": self.role, "content": self.content}
 
 
@@ -80,10 +81,12 @@ class ContextManager:
         summarizer: Optional[Summarizer] = None,
         pruner: Optional[Pruner] = None,
         always_keep_last_n: int = 4,
+        token_counter: Optional[TokenCounter] = None,
     ) -> None:
         self.token_budget = token_budget
         self.auto_prune = auto_prune
         self.prune_threshold = prune_threshold
+        self._token_counter = token_counter or GPTTokenCounter()
 
         self._scorer = scorer or MessageScorer()
         self._summarizer = summarizer or Summarizer()
@@ -92,6 +95,7 @@ class ContextManager:
             scorer=self._scorer,
             summarizer=self._summarizer,
             always_keep_last_n=always_keep_last_n,
+            token_counter=self._token_counter,
         )
 
         self._history: List[_MessageRecord] = []
@@ -120,7 +124,7 @@ class ContextManager:
         """Add an assistant message."""
         self.add("assistant", content, meta)
 
-    def add_messages(self, messages: Sequence[dict]) -> None:
+    def add_messages(self, messages: Sequence[dict[str, str]]) -> None:
         """Bulk-add a list of ``{"role": …, "content": …}`` dicts."""
         for m in messages:
             self.add(m.get("role", "user"), m.get("content", ""))
@@ -129,7 +133,7 @@ class ContextManager:
     # Retrieving messages
     # ------------------------------------------------------------------
 
-    def get_messages(self, *, force_prune: bool = False) -> List[dict]:
+    def get_messages(self, *, force_prune: bool = False) -> List[dict[str, str]]:
         """
         Return the current message list, optionally forcing a prune pass.
 
@@ -147,7 +151,7 @@ class ContextManager:
             return result.messages
         return raw
 
-    def get_raw_history(self) -> List[dict]:
+    def get_raw_history(self) -> List[dict[str, str]]:
         """Return every message ever added (no pruning)."""
         return [r.to_dict() for r in self._history]
 
@@ -158,13 +162,13 @@ class ContextManager:
     @property
     def token_count(self) -> int:
         """Estimated token count of the current (unpruned) history."""
-        return sum(_estimate_tokens(r.content) for r in self._history)
+        return sum(self._token_counter.count(r.content) for r in self._history)
 
     @property
     def message_count(self) -> int:
         return len(self._history)
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, float | int]:
         """Return a summary dict useful for logging / debugging."""
         return {
             "message_count": self.message_count,
@@ -199,7 +203,7 @@ class ContextManager:
         else:
             self._history = []
 
-    def pop(self) -> Optional[dict]:
+    def pop(self) -> Optional[dict[str, str]]:
         """Remove and return the last message."""
         if self._history:
             return self._history.pop().to_dict()
@@ -219,7 +223,7 @@ class ContextManager:
 
     def _maybe_prune(self) -> None:
         raw = [r.to_dict() for r in self._history]
-        used = sum(_estimate_tokens(m.get("content", "")) for m in raw)
+        used = sum(self._token_counter.count(m.get("content", "")) for m in raw)
         if used >= self.token_budget * self.prune_threshold:
             result = self._pruner.prune(raw)
             self._prune_history.append(result)

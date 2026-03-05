@@ -17,7 +17,7 @@ import textwrap
 from dataclasses import dataclass
 from typing import List, Optional, Sequence
 
-from .scorer import MessageScorer, ScoredMessage, _estimate_tokens
+from .scorer import MessageScorer, _estimate_tokens
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ class SummaryResult:
     summary_token_count: int
     compression_ratio: float          # summary_tokens / original_tokens
 
-    def as_message(self) -> dict:
+    def as_message(self) -> dict[str, str]:
         """Return the summary formatted as a system message."""
         return {
             "role": "system",
@@ -72,7 +72,7 @@ _CRITICAL_KW: set[str] = {
 
 
 def _extractive_summarize(
-    messages: Sequence[dict],
+    messages: Sequence[dict[str, str]],
     target_ratio: float = 0.35,
     max_sentences_per_msg: int = 3,
 ) -> str:
@@ -170,7 +170,7 @@ class Summarizer:
 
     # ------------------------------------------------------------------
 
-    def summarize(self, messages: Sequence[dict]) -> SummaryResult:
+    def summarize(self, messages: Sequence[dict[str, str]]) -> SummaryResult:
         """
         Summarize *messages* and return a :class:`SummaryResult`.
 
@@ -209,8 +209,11 @@ class Summarizer:
 
     # ------------------------------------------------------------------
 
-    def _abstractive(self, messages: Sequence[dict]) -> str:
+    def _abstractive(self, messages: Sequence[dict[str, str]]) -> str:
         """Call the LLM for an abstractive summary."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("Abstractive summarization requires a client")
         conversation_text = "\n".join(
             f"{m.get('role','user').upper()}: {m.get('content','')}"
             for m in messages
@@ -219,7 +222,7 @@ class Summarizer:
             max_words=self.max_abstractive_words,
             conversation=conversation_text,
         )
-        response = self.client.chat.completions.create(
+        response = client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=self.max_abstractive_words * 2,
@@ -231,7 +234,7 @@ class Summarizer:
 
     def should_summarize(
         self,
-        messages: Sequence[dict],
+        messages: Sequence[dict[str, str]],
         token_budget: int,
         summarize_threshold: float = 0.8,
     ) -> bool:

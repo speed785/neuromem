@@ -16,8 +16,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional, Sequence
 
-from .scorer import MessageScorer, ScoredMessage, _estimate_tokens
+from .scorer import MessageScorer, ScoredMessage
 from .summarizer import Summarizer, SummaryResult
+from .token_counter import GPTTokenCounter, TokenCounter
 
 
 # ---------------------------------------------------------------------------
@@ -27,16 +28,18 @@ from .summarizer import Summarizer, SummaryResult
 @dataclass
 class PruneResult:
     """Outcome of a :meth:`Pruner.prune` operation."""
-    messages: List[dict]              # final message list (ready to send)
+    messages: List[dict[str, str]]
     removed_count: int
     removed_tokens: int
     summary_inserted: bool
     summary_result: Optional[SummaryResult] = None
     scores: List[ScoredMessage] = field(default_factory=list)
+    token_counter: Optional[TokenCounter] = None
 
     @property
     def total_tokens(self) -> int:
-        return sum(_estimate_tokens(m.get("content", "")) for m in self.messages)
+        counter = self.token_counter or GPTTokenCounter()
+        return sum(counter.count(m.get("content", "")) for m in self.messages)
 
     def __repr__(self) -> str:  # pragma: no cover
         return (
@@ -80,6 +83,7 @@ class Pruner:
         scorer: Optional[MessageScorer] = None,
         summarizer: Optional[Summarizer] = None,
         preserve_roles: Optional[List[str]] = None,
+        token_counter: Optional[TokenCounter] = None,
     ) -> None:
         self.token_budget = token_budget
         self.min_score_threshold = min_score_threshold
@@ -88,12 +92,13 @@ class Pruner:
         self.scorer = scorer or MessageScorer()
         self.summarizer = summarizer or Summarizer()
         self.preserve_roles = set(preserve_roles or ["system"])
+        self.token_counter = token_counter or GPTTokenCounter()
 
     # ------------------------------------------------------------------
 
     def prune(
         self,
-        messages: Sequence[dict],
+        messages: Sequence[dict[str, str]],
         *,
         force: bool = False,
     ) -> PruneResult:
@@ -112,7 +117,7 @@ class Pruner:
         """
         msgs = list(messages)
 
-        current_tokens = sum(_estimate_tokens(m.get("content", "")) for m in msgs)
+        current_tokens = sum(self.token_counter.count(m.get("content", "")) for m in msgs)
         if not force and current_tokens <= self.token_budget:
             return PruneResult(
                 messages=msgs,
@@ -151,12 +156,12 @@ class Pruner:
                     summary_msg = summary_result.as_message()
                     # Remove summarized messages from msgs
                     remove_set = {s.index for s in low_scored}
-                    new_msgs: List[dict] = []
+                    new_msgs: List[dict[str, str]] = []
                     inserted = False
                     for i, m in enumerate(msgs):
                         if i in remove_set:
                             removed_count += 1
-                            removed_tokens += _estimate_tokens(m.get("content", ""))
+                            removed_tokens += self.token_counter.count(m.get("content", ""))
                         else:
                             if not inserted and i not in protected_indices and i == min(
                                 j for j in range(len(msgs)) if j not in remove_set and j not in protected_indices
@@ -174,7 +179,7 @@ class Pruner:
 
                     msgs = new_msgs
                     summary_inserted = True
-                    current_tokens = sum(_estimate_tokens(m.get("content", "")) for m in msgs)
+                    current_tokens = sum(self.token_counter.count(m.get("content", "")) for m in msgs)
 
         # --- hard prune if still over budget ---
         if current_tokens > self.token_budget:
@@ -205,11 +210,12 @@ class Pruner:
             summary_inserted=summary_inserted,
             summary_result=summary_result,
             scores=scored,
+            token_counter=self.token_counter,
         )
 
     # ------------------------------------------------------------------
 
-    def _partition(self, msgs: List[dict]) -> tuple[set[int], set[int]]:
+    def _partition(self, msgs: List[dict[str, str]]) -> tuple[set[int], set[int]]:
         """Split indices into (protected, candidates)."""
         n = len(msgs)
         protected: set[int] = set()
@@ -220,15 +226,16 @@ class Pruner:
 
         # Always-keep last N non-system messages
         non_system = [i for i in range(n) if i not in protected]
-        for idx in non_system[-self.always_keep_last_n:]:
-            protected.add(idx)
+        if self.always_keep_last_n > 0:
+            for idx in non_system[-self.always_keep_last_n:]:
+                protected.add(idx)
 
         candidates = set(range(n)) - protected
         return protected, candidates
 
     # ------------------------------------------------------------------
 
-    def needs_pruning(self, messages: Sequence[dict]) -> bool:
+    def needs_pruning(self, messages: Sequence[dict[str, str]]) -> bool:
         """Return True if messages exceed the token budget."""
-        total = sum(_estimate_tokens(m.get("content", "")) for m in messages)
+        total = sum(self.token_counter.count(m.get("content", "")) for m in messages)
         return total > self.token_budget

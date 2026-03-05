@@ -22,8 +22,14 @@ setup(
     ],
     extras_require={
         "openai": ["openai>=1.0.0"],
+        "anthropic": ["anthropic>=0.7.0"],
         "langchain": ["langchain>=0.1.0", "langchain-openai>=0.1.0"],
-        "all": ["openai>=1.0.0", "langchain>=0.1.0", "langchain-openai>=0.1.0"],
+        "all": [
+            "openai>=1.0.0",
+            "anthropic>=0.7.0",
+            "langchain>=0.1.0",
+            "langchain-openai>=0.1.0",
+        ],
         "dev": [
             "pytest>=7.0",
             "pytest-cov",

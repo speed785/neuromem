@@ -1,0 +1,3 @@
+[run]
+omit =
+    neuromem/integrations/langchain.py
