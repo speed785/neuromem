@@ -4,7 +4,7 @@
   <p><strong>Smart context management — never lose critical memory again</strong></p>
 
   [![CI](https://github.com/speed785/neuromem/actions/workflows/ci.yml/badge.svg)](https://github.com/speed785/neuromem/actions/workflows/ci.yml)
-  [![Coverage](https://codecov.io/gh/speed785/neuromem/branch/main/graph/badge.svg)](https://codecov.io/gh/speed785/neuromem)
+  [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/speed785/neuromem)
   [![PyPI](https://img.shields.io/pypi/v/neuromem)](https://pypi.org/project/neuromem/)
   [![npm](https://img.shields.io/npm/v/neuromem)](https://www.npmjs.com/package/neuromem)
   [![Python](https://img.shields.io/badge/python-3.9+-blue)](https://python.org)

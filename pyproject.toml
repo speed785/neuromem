@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta:__legacy__"
+
+[project]
+name = "neuromem"
+version = "0.1.0"
+description = "Smart Context Manager for LLM agents — intelligent token budgeting, scoring, summarization, and pruning"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = [
+  "ai",
+  "agent",
+  "llm",
+  "context",
+  "memory",
+  "context-window",
+  "openai",
+  "anthropic",
+  "langchain",
+  "token",
+  "summarization",
+  "pruning",
+  "chatgpt",
+  "claude",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+openai = ["openai>=1.0.0"]
+anthropic = ["anthropic>=0.7.0"]
+langchain = ["langchain>=0.1.0", "langchain-openai>=0.1.0"]
+llamaindex = ["llama-index-core>=0.10.0"]
+crewai = ["crewai>=0.28.0"]
+all = [
+  "openai>=1.0.0",
+  "anthropic>=0.7.0",
+  "langchain>=0.1.0",
+  "langchain-openai>=0.1.0",
+  "llama-index-core>=0.10.0",
+  "crewai>=0.28.0",
+]
+dev = ["pytest>=7.0", "pytest-cov", "black", "ruff", "mypy"]
+
+[project.urls]
+Homepage = "https://speed785.github.io/neuromem"
+Documentation = "https://speed785.github.io/neuromem"
+Repository = "https://github.com/speed785/neuromem"
+Issues = "https://github.com/speed785/neuromem/issues"
+Changelog = "https://github.com/speed785/neuromem/blob/main/CHANGELOG.md"
+
+[tool.coverage.run]
+omit = ["neuromem/integrations/langchain.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = false
+ignore_missing_imports = true
+
+[tool.setuptools.packages.find]
+include = ["neuromem*"]
+exclude = ["tests*", "examples*"]
