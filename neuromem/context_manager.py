@@ -29,7 +29,6 @@ from .scorer import MessageScorer
 from .summarizer import Summarizer
 from .token_counter import GPTTokenCounter, TokenCounter
 
-
 # ---------------------------------------------------------------------------
 # Internal message record
 # ---------------------------------------------------------------------------

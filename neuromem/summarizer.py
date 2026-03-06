@@ -19,7 +19,6 @@ from typing import List, Optional, Sequence
 
 from .scorer import MessageScorer, _estimate_tokens
 
-
 # ---------------------------------------------------------------------------
 # Result type
 # ---------------------------------------------------------------------------

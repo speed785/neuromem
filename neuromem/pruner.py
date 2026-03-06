@@ -21,7 +21,6 @@ from .scorer import MessageScorer, ScoredMessage
 from .summarizer import Summarizer, SummaryResult
 from .token_counter import GPTTokenCounter, TokenCounter
 
-
 # ---------------------------------------------------------------------------
 # Result type
 # ---------------------------------------------------------------------------
