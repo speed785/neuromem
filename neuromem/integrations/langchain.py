@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false, reportGeneralTypeIssues=false, reportPossiblyUnboundVariable=false
 """
 neuromem.integrations.langchain
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -24,21 +25,19 @@ Usage (LangChain ≥ 0.1)::
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from ..context_manager import ContextManager
-from ..scorer import MessageScorer
-from ..summarizer import Summarizer
-from ..pruner import Pruner
 
 try:
     from langchain.memory.chat_memory import BaseChatMemory
-    from langchain.schema import BaseMessage, HumanMessage, AIMessage, SystemMessage
+    from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
     from langchain.schema.messages import get_buffer_string
-    _LANGCHAIN_AVAILABLE = True
+
+    _langchain_available = True
 except ImportError:
-    _LANGCHAIN_AVAILABLE = False
-    # Provide a stub so the module imports without LangChain installed
+    _langchain_available = False
+
     class BaseChatMemory:  # type: ignore
         pass
 
@@ -49,6 +48,9 @@ def _require_langchain():
             "LangChain is required for this integration. "
             "Install it with: pip install langchain langchain-openai"
         )
+
+
+_LANGCHAIN_AVAILABLE = _langchain_available
 
 
 # ---------------------------------------------------------------------------
@@ -76,9 +78,9 @@ class NeuromemMemory(BaseChatMemory):
     system_prompt: str = ""
 
     # neuromem internals (excluded from pydantic serialisation)
-    _context: ContextManager = None  # type: ignore
+    _context: ContextManager
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         _require_langchain()
         super().__init__(**kwargs)
         self._context = ContextManager(token_budget=self.token_budget)
@@ -90,10 +92,10 @@ class NeuromemMemory(BaseChatMemory):
     # ------------------------------------------------------------------
 
     @property
-    def memory_variables(self) -> List[str]:
+    def memory_variables(self) -> list[str]:
         return [self.memory_key]
 
-    def load_memory_variables(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+    def load_memory_variables(self, inputs: dict[str, Any]) -> dict[str, Any]:
         """Return managed messages for injection into the prompt."""
         _require_langchain()
         raw_msgs = self._context.get_messages()
@@ -107,7 +109,7 @@ class NeuromemMemory(BaseChatMemory):
             ai_prefix=self.ai_prefix,
         )}
 
-    def save_context(self, inputs: Dict[str, Any], outputs: Dict[str, Any]) -> None:
+    def save_context(self, inputs: dict[str, Any], outputs: dict[str, Any]) -> None:
         """Called by LangChain after each chain step."""
         human_text = inputs.get("input") or inputs.get("human_input") or ""
         ai_text = outputs.get("response") or outputs.get("output") or ""
@@ -123,7 +125,7 @@ class NeuromemMemory(BaseChatMemory):
     # ------------------------------------------------------------------
 
     @property
-    def context_stats(self) -> dict:
+    def context_stats(self) -> dict[str, Any]:
         return self._context.stats()
 
     @property
@@ -136,7 +138,7 @@ class NeuromemMemory(BaseChatMemory):
 # Conversion helpers
 # ---------------------------------------------------------------------------
 
-def _to_langchain_messages(messages: List[dict]):
+def _to_langchain_messages(messages: list[dict[str, str]]) -> list[BaseMessage]:
     """Convert neuromem dicts → LangChain BaseMessage objects."""
     _require_langchain()
     result = []
@@ -152,7 +154,7 @@ def _to_langchain_messages(messages: List[dict]):
     return result
 
 
-def _from_langchain_messages(messages) -> List[dict]:
+def _from_langchain_messages(messages: list[BaseMessage]) -> list[dict[str, str]]:
     """Convert LangChain BaseMessage objects → neuromem dicts."""
     _require_langchain()
     result = []

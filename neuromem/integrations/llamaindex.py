@@ -5,8 +5,8 @@ from typing import Any, List
 from ..context_manager import ContextManager
 
 try:
-    from llama_index.core.memory import BaseChatMemoryBuffer  # pyright: ignore[reportMissingImports]
     from llama_index.core.base.llms.types import ChatMessage, MessageRole  # pyright: ignore[reportMissingImports]
+    from llama_index.core.memory import BaseChatMemoryBuffer  # pyright: ignore[reportMissingImports]
 
     _llamaindex_available = True
 except ImportError:
@@ -18,9 +18,6 @@ except ImportError:
 
     ChatMessage = None  # type: ignore
     MessageRole = None  # type: ignore
-
-
-_BaseChatMemoryBuffer = BaseChatMemoryBuffer
 
 
 def _role_to_neuromem(value: Any) -> str:
@@ -54,7 +51,7 @@ def _to_chat_message(message: dict[str, str]) -> Any:
     )
 
 
-class NeuromemChatMemoryBuffer(_BaseChatMemoryBuffer):  # pyright: ignore[reportGeneralTypeIssues]
+class NeuromemChatMemoryBuffer(BaseChatMemoryBuffer):  # pyright: ignore[reportGeneralTypeIssues]
 
     def __init__(
         self,

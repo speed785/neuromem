@@ -18,7 +18,6 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional, Sequence
 
-
 # ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
@@ -58,7 +57,7 @@ _CRITICAL_KEYWORDS: set[str] = {
     "always", "never", "forbidden", "allowed",
 }
 
-_BOOSTED_PATTERNS: list[re.Pattern] = [
+_BOOSTED_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\b(TODO|FIXME|NOTE|IMPORTANT|WARNING|CRITICAL)\b"),
     re.compile(r"\bremember\b.*\bthis\b", re.IGNORECASE),
     re.compile(r"\bdo not\b|\bdon't\b|\bmust not\b", re.IGNORECASE),
@@ -140,7 +139,7 @@ class MessageScorer:
     # ------------------------------------------------------------------
     def score_messages(
         self,
-        messages: Sequence[dict],
+        messages: Sequence[dict[str, str]],
         *,
         reference_text: Optional[str] = None,
     ) -> List[ScoredMessage]:
